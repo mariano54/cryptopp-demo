@@ -2,10 +2,12 @@
 
 using namespace CryptoPP;
 
-DeviceCrypto::DeviceCrypto(unsigned const char * device_master_key, unsigned const char * device_id) {
-  memcpy(this->device_id, device_id, DEVICE_ID_LEN);
-  generate_device_key(device_master_key, device_id, this->device_key);
-  this->crypto_mode = ENCRYPT;
+DeviceCrypto::DeviceCrypto(
+  unsigned const char * device_master_key, 
+  unsigned const char * device_id) {
+    memcpy(this->device_id, device_id, DEVICE_ID_LEN);
+    generate_device_key(device_master_key, device_id, this->device_key);
+    this->crypto_mode = ENCRYPT;
 }
 
 DeviceCrypto::DeviceCrypto(unsigned const char * device_master_key) {
@@ -43,29 +45,26 @@ void DeviceCrypto::generate_device_key(
     memcpy(device_key, digest_output, DEVICE_KEY_LEN);
 }
 
-EncryptedMessage * DeviceCrypto::encrypt(std::string message) {
+void DeviceCrypto::encrypt(std::string message, EncryptedMessage * enc) {
   if (this->crypto_mode != ENCRYPT) {
     throw "Must be in encrypt mode to encrypt";
   }
-  EncryptedMessage * encrypted_message = new EncryptedMessage();
-  generate_random_bytes(encrypted_message->iv, IV_LEN);;
+  generate_random_bytes(enc->iv, IV_LEN);;
   // Convert to unsigned char *
   unsigned char plaintext[message.length()];
   strcpy((char *)plaintext, message.c_str());
    
-  encrypted_message->ciphertext = (unsigned char*)malloc(sizeof(plaintext) + TAG_LEN);
-  encrypted_message->ciphertext_len = sizeof(plaintext) + TAG_LEN;
-  memcpy(encrypted_message->device_id, this->device_id, DEVICE_ID_LEN);
+  enc->ciphertext = new unsigned char[sizeof(plaintext) + TAG_LEN];
+  enc->ciphertext_len = sizeof(plaintext) + TAG_LEN;
+  memcpy(enc->device_id, this->device_id, DEVICE_ID_LEN);
   
   encrypt_gcm(
     this->device_key, 
     plaintext, 
-    encrypted_message->ciphertext, 
-    encrypted_message->ciphertext + sizeof(plaintext), 
-    encrypted_message->iv, 
+    enc->ciphertext, 
+    enc->ciphertext + sizeof(plaintext), 
+    enc->iv, 
     sizeof(plaintext));
-
-  return encrypted_message;
 }
 
 std::string DeviceCrypto::decrypt(EncryptedMessage * m) {

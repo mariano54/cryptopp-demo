@@ -15,7 +15,8 @@ TEST_CASE("Should encrypt and decrypt a string") {
       DeviceCrypto encryptor(device_master_key, device_id);
       std::string plaintext = "This is what I want to encrypt, will it work or not?";
 
-      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      EncryptedMessage * m = new EncryptedMessage();
+      encryptor.encrypt(plaintext, m);
 
       print_buf("device_master_key", device_master_key, sizeof(device_master_key));
       print_buf("device_id", device_id, sizeof(device_id));
@@ -28,6 +29,7 @@ TEST_CASE("Should encrypt and decrypt a string") {
       std::string decrypted = decryptor.decrypt(m);
       std::cout << "Decrypted: " << decrypted << std::endl;
       REQUIRE(decrypted.compare(plaintext) == 0);
+      delete m;
     }
 
     SECTION("Encrypt multiple times") {
@@ -36,9 +38,13 @@ TEST_CASE("Should encrypt and decrypt a string") {
       std::string plaintext2 = "Plaintext to encrypt2";
       std::string plaintext3 = "Plaintext to encrypt3";
 
-      EncryptedMessage * m = encryptor.encrypt(plaintext);
-      EncryptedMessage * m2 = encryptor.encrypt(plaintext2);
-      EncryptedMessage * m3 = encryptor.encrypt(plaintext3);
+      EncryptedMessage * m = new EncryptedMessage();
+      encryptor.encrypt(plaintext, m);
+      EncryptedMessage * m2 = new EncryptedMessage();
+      encryptor.encrypt(plaintext2, m2);
+      EncryptedMessage * m3 = new EncryptedMessage();
+      encryptor.encrypt(plaintext3, m3);
+
       DeviceCrypto decryptor(device_master_key);
 
       std::string decrypted = decryptor.decrypt(m);
@@ -48,37 +54,45 @@ TEST_CASE("Should encrypt and decrypt a string") {
       REQUIRE(decrypted.compare(plaintext) == 0);
       REQUIRE(decrypted2.compare(plaintext2) == 0);
       REQUIRE(decrypted3.compare(plaintext3) == 0);
+      delete m;
+      delete m2;
+      delete m3;
     }
 
     SECTION("Encrypt empty string") {
       DeviceCrypto encryptor(device_master_key, device_id);
       std::string plaintext = "";
 
-      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      EncryptedMessage * m = new EncryptedMessage();
+      encryptor.encrypt(plaintext, m);
       DeviceCrypto decryptor(device_master_key);
 
       std::string decrypted = decryptor.decrypt(m);
 
       REQUIRE(decrypted.compare(plaintext) == 0);
+      delete m;
     }
 
     SECTION("Fail with invalid tag") {
       DeviceCrypto encryptor(device_master_key, device_id);
       std::string plaintext = "";
+      EncryptedMessage * m = new EncryptedMessage();
+      encryptor.encrypt(plaintext, m);
 
-      EncryptedMessage * m = encryptor.encrypt(plaintext);
       DeviceCrypto decryptor(device_master_key);
 
       // Flip a bit to test bad tag
       m->ciphertext[m->ciphertext_len - 1] = m->ciphertext[m->ciphertext_len] ^= 1;
       REQUIRE_THROWS(decryptor.decrypt(m));
+      delete m;
     }
     
     SECTION("Fail with invalid ciphertext") {
       DeviceCrypto encryptor(device_master_key, device_id);
       std::string plaintext = "";
+      EncryptedMessage * m = new EncryptedMessage();
+      encryptor.encrypt(plaintext, m);
 
-      EncryptedMessage * m = encryptor.encrypt(plaintext);
       DeviceCrypto decryptor(device_master_key);
 
       // Flip a bit to test bad ciphertext
@@ -90,7 +104,8 @@ TEST_CASE("Should encrypt and decrypt a string") {
       DeviceCrypto encryptor(device_master_key, device_id);
       std::string plaintext = "";
 
-      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      EncryptedMessage * m = new EncryptedMessage();
+      encryptor.encrypt(plaintext, m);
       DeviceCrypto decryptor(device_master_key);
 
       // Change ciphertext length
@@ -102,14 +117,14 @@ TEST_CASE("Should encrypt and decrypt a string") {
       DeviceCrypto decryptor(device_master_key);
       std::string plaintext = "";
 
-      REQUIRE_THROWS(decryptor.encrypt(plaintext));
+      REQUIRE_THROWS(decryptor.encrypt(plaintext, new EncryptedMessage()));
     }
 
     SECTION("Fail if decrypt in encrypt mode") {
       DeviceCrypto encryptor(device_master_key, device_id);
       std::string plaintext = "";
-
-      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      EncryptedMessage * m = new EncryptedMessage();
+      encryptor.encrypt(plaintext, m);
       DeviceCrypto decryptor(device_master_key);
 
       REQUIRE_THROWS(encryptor.decrypt(m));

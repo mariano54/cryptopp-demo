@@ -28,8 +28,15 @@ using namespace CryptoPP;
 struct EncryptedMessage {
   unsigned char iv[IV_LEN];
   unsigned char device_id[DEVICE_ID_LEN];
-  unsigned char *ciphertext;
+  unsigned char * ciphertext;
   size_t ciphertext_len;
+
+  EncryptedMessage() {
+    ciphertext = NULL;
+  }
+  ~EncryptedMessage() {
+    if (ciphertext != NULL) delete [] ciphertext;
+  }
 };
 
 class DeviceCrypto {
@@ -44,7 +51,7 @@ class DeviceCrypto {
     static void generate_random_bytes(unsigned char * buf, unsigned long len);
 
     // Higher level function to encrypt a message. Uses device_id and device_key
-    EncryptedMessage * encrypt(std::string message);
+    void encrypt(std::string message, EncryptedMessage* enc);
 
     // Higher level function to decrypt a message. Uses saved device_master_key
     std::string decrypt(EncryptedMessage * m);
