@@ -1,90 +1,118 @@
-#define VAR1 100
+#define CATCH_CONFIG_MAIN  // This tells Catch to provide a main()
+#include "catch.hpp"
 
-#include <iostream>
-#include <vector>
-#include <fstream>
-#include <climits>
-#include <bitset>
-#include <iomanip>
+#include "device_crypto.h"
+#include "util.h"
 
-#include "cryptopp/cryptlib.h"
-#include "cryptopp/files.h"
-#include "cryptopp/hex.h"
-#include "cryptopp/sha.h"
-#include "cryptopp/hmac.h"
-#include "cryptopp/osrng.h"
+TEST_CASE("Should encrypt and decrypt a string") {
+    unsigned char device_id[DEVICE_ID_LEN];
+    DeviceCrypto::generate_random_bytes(device_id, DEVICE_ID_LEN);
 
-#include <tomcrypt.h>
+    unsigned char device_master_key[DEVICE_MASTER_KEY_LEN];
+    DeviceCrypto::generate_random_bytes(device_master_key, DEVICE_MASTER_KEY_LEN);
 
-using namespace CryptoPP;
+    SECTION("Basic decrypt/encrypt") {
+      DeviceCrypto encryptor(device_master_key, device_id);
+      std::string plaintext = "This is what I want to encrypt, will it work or not?";
 
+      EncryptedMessage * m = encryptor.encrypt(plaintext);
 
-void generate_device_key(
-  const byte * device_master_key,
-  const byte * device_id,
-  size_t dmk_size, 
-  size_t did_size,
-  byte * device_key) {
-    HMAC<SHA256> hmac(device_master_key, dmk_size);
-    hmac.Update(device_id, did_size);
+      print_buf("device_master_key", device_master_key, sizeof(device_master_key));
+      print_buf("device_id", device_id, sizeof(device_id));
+      print_buf("ciphertext", m->ciphertext, sizeof(m->ciphertext));
+      print_buf("tag", m->ciphertext + (m->ciphertext_len - TAG_LEN), TAG_LEN);
+      print_buf("iv", m->iv, sizeof(m->iv));
 
-    std::cout << HMAC<SHA256>::StaticAlgorithmName() << std::endl;
-    hmac.Final(device_key);
-}
+      DeviceCrypto decryptor(device_master_key);
 
-void encrypt(
-  const byte * device_key,
-  const byte * message,
-  const byte * ciphertext) {
-    AutoSeededRandomPool rnd;
-
-    // Generate a random IV
-    byte iv[AES::BLOCKSIZE];
-    rnd.GenerateBlock(iv, AES::BLOCKSIZE);
-
-    std::string plaintext = "Hello bob!";
-    int messageLen = (int)plaintext.length() + 1;
-
-}
-
-int main() {
-    const byte m[] = {
-      0x5,0x8,0xC,0xE,0x1,0xE,0x6,0x0,0x1,0x1,
-      0x1,0x1,0x1,0x1,0x1,0x1,0x6,0x4,0x6,0x1,
-      0x7,0x4,0x6,0x1,0x0,0x0,0x0,0x0
-    };
-
-    const byte k[] = {
-      0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,
-      0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,
-      0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x2,0x7
-    };
-
-    
-    byte device_key[SHA256::DIGESTSIZE];
-
-    generate_device_key(k, m, sizeof(k), sizeof(m), device_key);
-
-    std::cout << "AES Blocksize:" << AES::BLOCKSIZE << std::endl;
-
-    /* now given a 20 byte key what keysize does Twofish want to use? */
-    int keysize = 64;
-    int err = 0;
-    if ((err = twofish_keysize(&keysize)) != CRYPT_OK) {
-      printf("Error getting key size: %s\n", error_to_string(err));
-    
+      std::string decrypted = decryptor.decrypt(m);
+      std::cout << "Decrypted: " << decrypted << std::endl;
+      REQUIRE(decrypted.compare(plaintext) == 0);
     }
-    printf("Twofish suggested a key size of %d\n", keysize);
 
-    HexEncoder hex(new FileSink(std::cout));
-    std::cout << "Message: ";
-    hex.Put(m, sizeof(m));
-    hex.MessageEnd();
-    std::cout << std::endl;
+    SECTION("Encrypt multiple times") {
+      DeviceCrypto encryptor(device_master_key, device_id);
+      std::string plaintext = "Plaintext to encrypt";
+      std::string plaintext2 = "Plaintext to encrypt2";
+      std::string plaintext3 = "Plaintext to encrypt3";
 
-    std::cout << "Digest: ";
-    hex.Put(device_key, sizeof(device_key));
-    hex.MessageEnd();
-    std::cout << std::endl;
-}
+      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      EncryptedMessage * m2 = encryptor.encrypt(plaintext2);
+      EncryptedMessage * m3 = encryptor.encrypt(plaintext3);
+      DeviceCrypto decryptor(device_master_key);
+
+      std::string decrypted = decryptor.decrypt(m);
+      std::string decrypted2 = decryptor.decrypt(m2);
+      std::string decrypted3 = decryptor.decrypt(m3);
+
+      REQUIRE(decrypted.compare(plaintext) == 0);
+      REQUIRE(decrypted2.compare(plaintext2) == 0);
+      REQUIRE(decrypted3.compare(plaintext3) == 0);
+    }
+
+    SECTION("Encrypt empty string") {
+      DeviceCrypto encryptor(device_master_key, device_id);
+      std::string plaintext = "";
+
+      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      DeviceCrypto decryptor(device_master_key);
+
+      std::string decrypted = decryptor.decrypt(m);
+
+      REQUIRE(decrypted.compare(plaintext) == 0);
+    }
+
+    SECTION("Fail with invalid tag") {
+      DeviceCrypto encryptor(device_master_key, device_id);
+      std::string plaintext = "";
+
+      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      DeviceCrypto decryptor(device_master_key);
+
+      // Flip a bit to test bad tag
+      m->ciphertext[m->ciphertext_len - 1] = m->ciphertext[m->ciphertext_len] ^= 1;
+      REQUIRE_THROWS(decryptor.decrypt(m));
+    }
+    
+    SECTION("Fail with invalid ciphertext") {
+      DeviceCrypto encryptor(device_master_key, device_id);
+      std::string plaintext = "";
+
+      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      DeviceCrypto decryptor(device_master_key);
+
+      // Flip a bit to test bad ciphertext
+      m->ciphertext[0] = m->ciphertext[0] ^= 1;
+      REQUIRE_THROWS(decryptor.decrypt(m));
+    }
+
+    SECTION("Fail with invalid ciphertext length") {
+      DeviceCrypto encryptor(device_master_key, device_id);
+      std::string plaintext = "";
+
+      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      DeviceCrypto decryptor(device_master_key);
+
+      // Change ciphertext length
+      m->ciphertext_len += 1;
+      REQUIRE_THROWS(decryptor.decrypt(m));
+    }
+
+    SECTION("Fail if encrypt in decrypt mode") {
+      DeviceCrypto decryptor(device_master_key);
+      std::string plaintext = "";
+
+      REQUIRE_THROWS(decryptor.encrypt(plaintext));
+    }
+
+    SECTION("Fail if decrypt in encrypt mode") {
+      DeviceCrypto encryptor(device_master_key, device_id);
+      std::string plaintext = "";
+
+      EncryptedMessage * m = encryptor.encrypt(plaintext);
+      DeviceCrypto decryptor(device_master_key);
+
+      REQUIRE_THROWS(encryptor.decrypt(m));
+    }
+ }
 
