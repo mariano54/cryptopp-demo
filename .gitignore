@@ -1,0 +1,5 @@
+cryptopp600/
+*.o
+main
+.vscode/
+
