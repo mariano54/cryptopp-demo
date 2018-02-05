@@ -7,12 +7,14 @@
 #include <bitset>
 #include <iomanip>
 
-#include "cryptlib.h"
-#include "cryptopp600/files.h"
-#include "cryptopp600/hex.h"
-#include "cryptopp600/sha.h"
-#include "cryptopp600/hmac.h"
-#include "cryptopp600/osrng.h"
+#include "cryptopp/cryptlib.h"
+#include "cryptopp/files.h"
+#include "cryptopp/hex.h"
+#include "cryptopp/sha.h"
+#include "cryptopp/hmac.h"
+#include "cryptopp/osrng.h"
+
+#include <tomcrypt.h>
 
 using namespace CryptoPP;
 
@@ -34,7 +36,14 @@ void encrypt(
   const byte * device_key,
   const byte * message,
   const byte * ciphertext) {
+    AutoSeededRandomPool rnd;
 
+    // Generate a random IV
+    byte iv[AES::BLOCKSIZE];
+    rnd.GenerateBlock(iv, AES::BLOCKSIZE);
+
+    std::string plaintext = "Hello bob!";
+    int messageLen = (int)plaintext.length() + 1;
 
 }
 
@@ -56,6 +65,16 @@ int main() {
 
     generate_device_key(k, m, sizeof(k), sizeof(m), device_key);
 
+    std::cout << "AES Blocksize:" << AES::BLOCKSIZE << std::endl;
+
+    /* now given a 20 byte key what keysize does Twofish want to use? */
+    int keysize = 64;
+    int err = 0;
+    if ((err = twofish_keysize(&keysize)) != CRYPT_OK) {
+      printf("Error getting key size: %s\n", error_to_string(err));
+    
+    }
+    printf("Twofish suggested a key size of %d\n", keysize);
 
     HexEncoder hex(new FileSink(std::cout));
     std::cout << "Message: ";
