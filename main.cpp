@@ -12,8 +12,12 @@ TEST_CASE("Should encrypt and decrypt a string") {
     DeviceCrypto::generate_random_bytes(device_master_key, DEVICE_MASTER_KEY_LEN);
 
     SECTION("Basic decrypt/encrypt") {
-      DeviceCrypto encryptor(device_master_key, device_id);
+      unsigned char device_key[DEVICE_KEY_LEN];
+      DeviceCrypto::generate_device_key(device_master_key, device_id, device_key);
+
+      DeviceCrypto encryptor(device_key, device_id);
       std::string plaintext = "This is what I want to encrypt, will it work or not?";
+      std::cout << "Plaintext: " << plaintext << std::endl;
 
       EncryptedMessage * m = new EncryptedMessage();
       encryptor.encrypt(plaintext, m);
@@ -33,7 +37,9 @@ TEST_CASE("Should encrypt and decrypt a string") {
     }
 
     SECTION("Encrypt multiple times") {
-      DeviceCrypto encryptor(device_master_key, device_id);
+      unsigned char device_key[DEVICE_KEY_LEN];
+      DeviceCrypto::generate_device_key(device_master_key, device_id, device_key);
+      DeviceCrypto encryptor(device_key, device_id);
       std::string plaintext = "Plaintext to encrypt";
       std::string plaintext2 = "Plaintext to encrypt2";
       std::string plaintext3 = "Plaintext to encrypt3";
@@ -60,7 +66,9 @@ TEST_CASE("Should encrypt and decrypt a string") {
     }
 
     SECTION("Encrypt empty string") {
-      DeviceCrypto encryptor(device_master_key, device_id);
+      unsigned char device_key[DEVICE_KEY_LEN];
+      DeviceCrypto::generate_device_key(device_master_key, device_id, device_key);
+      DeviceCrypto encryptor(device_key, device_id);
       std::string plaintext = "";
 
       EncryptedMessage * m = new EncryptedMessage();
@@ -74,7 +82,9 @@ TEST_CASE("Should encrypt and decrypt a string") {
     }
 
     SECTION("Fail with invalid tag") {
-      DeviceCrypto encryptor(device_master_key, device_id);
+      unsigned char device_key[DEVICE_KEY_LEN];
+      DeviceCrypto::generate_device_key(device_master_key, device_id, device_key);
+      DeviceCrypto encryptor(device_key, device_id);
       std::string plaintext = "";
       EncryptedMessage * m = new EncryptedMessage();
       encryptor.encrypt(plaintext, m);
@@ -88,7 +98,9 @@ TEST_CASE("Should encrypt and decrypt a string") {
     }
     
     SECTION("Fail with invalid ciphertext") {
-      DeviceCrypto encryptor(device_master_key, device_id);
+      unsigned char device_key[DEVICE_KEY_LEN];
+      DeviceCrypto::generate_device_key(device_master_key, device_id, device_key);
+      DeviceCrypto encryptor(device_key, device_id);
       std::string plaintext = "";
       EncryptedMessage * m = new EncryptedMessage();
       encryptor.encrypt(plaintext, m);
@@ -101,7 +113,9 @@ TEST_CASE("Should encrypt and decrypt a string") {
     }
 
     SECTION("Fail with invalid ciphertext length") {
-      DeviceCrypto encryptor(device_master_key, device_id);
+      unsigned char device_key[DEVICE_KEY_LEN];
+      DeviceCrypto::generate_device_key(device_master_key, device_id, device_key);
+      DeviceCrypto encryptor(device_key, device_id);
       std::string plaintext = "";
 
       EncryptedMessage * m = new EncryptedMessage();
@@ -121,7 +135,9 @@ TEST_CASE("Should encrypt and decrypt a string") {
     }
 
     SECTION("Fail if decrypt in encrypt mode") {
-      DeviceCrypto encryptor(device_master_key, device_id);
+      unsigned char device_key[DEVICE_KEY_LEN];
+      DeviceCrypto::generate_device_key(device_master_key, device_id, device_key);
+      DeviceCrypto encryptor(device_key, device_id);
       std::string plaintext = "";
       EncryptedMessage * m = new EncryptedMessage();
       encryptor.encrypt(plaintext, m);

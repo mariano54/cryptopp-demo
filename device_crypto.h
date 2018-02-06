@@ -42,10 +42,16 @@ struct EncryptedMessage {
 class DeviceCrypto {
   public:
     // Creates an object in encrypt mode, used by devices
-    DeviceCrypto(unsigned const char * device_master_key, unsigned const char * device_id);
+    DeviceCrypto(unsigned const char * device_key, unsigned const char * device_id);
     
     // Creates an object in decrypt mode, used by server
     DeviceCrypto(unsigned const char * device_master_key);
+
+    // Uses crypto++ hmac to generate a device key
+    static void generate_device_key(
+      const unsigned char * device_master_key,
+      const unsigned char * device_id,
+      unsigned char * device_key);
 
     // Uses tomcrypt to generate random bytes
     static void generate_random_bytes(unsigned char * buf, unsigned long len);
@@ -64,12 +70,6 @@ class DeviceCrypto {
     unsigned char device_id[DEVICE_ID_LEN];
     unsigned char device_key[DEVICE_KEY_LEN];
     unsigned char device_master_key[DEVICE_KEY_LEN];
-
-    // Uses crypto++ hmac to generate a device key
-    void generate_device_key(
-      const unsigned char * device_master_key,
-      const unsigned char * device_id,
-      unsigned char * device_key);
 
 
     // Uses tomcrypt to encrypt a plaintext

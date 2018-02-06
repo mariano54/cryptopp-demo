@@ -3,10 +3,10 @@
 using namespace CryptoPP;
 
 DeviceCrypto::DeviceCrypto(
-  unsigned const char * device_master_key, 
+  unsigned const char * device_key, 
   unsigned const char * device_id) {
+    memcpy(this->device_key, device_key, DEVICE_KEY_LEN);
     memcpy(this->device_id, device_id, DEVICE_ID_LEN);
-    generate_device_key(device_master_key, device_id, this->device_key);
     this->crypto_mode = ENCRYPT;
 }
 
